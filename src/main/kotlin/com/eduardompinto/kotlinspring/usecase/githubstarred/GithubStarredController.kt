@@ -12,9 +12,16 @@ class GithubStarredController(
 ) {
 
     @GetMapping("/{user}", produces = [APPLICATION_JSON_VALUE])
-    fun listStars(@PathVariable user: String): ResponseEntity<List<StarredResponse>> {
-        val response = fetcher.fetchStars2(user)
-        return ResponseEntity.ok(response)
+    fun listStars(@PathVariable user: String): ResponseEntity<*> {
+        return try {
+            val response = fetcher.fetchStars(user).sortedByDescending {
+                it.stargazers_count
+            }
+            ResponseEntity.ok(response)
+        } catch (ex: Exception) {
+            val errorBody = mapOf("message" to ex.message)
+            ResponseEntity.status(500).body(errorBody)
+        }
     }
 
 }
