@@ -1,24 +1,25 @@
 package com.eduardompinto.kotlinspring.usecase.githubstarred
 
 
-import org.apache.juli.logging.LogFactory
-import org.apache.logging.log4j.Level
-import org.apache.logging.log4j.LogManager
-import org.apache.logging.log4j.Logger
-import org.apache.logging.log4j.Marker
-import org.springframework.context.annotation.Primary
-import org.springframework.http.ResponseEntity
+import com.eduardompinto.kotlinspring.get
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import org.apache.commons.logging.LogFactory
 import org.springframework.stereotype.Service
-import org.springframework.web.client.RestTemplate
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.TimeUnit
 
 
 @Service
-@Primary
 class GithubStarredFetcherParallel(
-    private val restTemplate: RestTemplate,
+    private val httpClient: HttpClient,
+    private val httpRequestBuilder: HttpRequest.Builder,
+    private val json: Json,
     private val executor: ExecutorService
 ) : GithubStarredFetcher {
 
@@ -28,14 +29,13 @@ class GithubStarredFetcherParallel(
         user: String
     ): List<StarredResponse> {
         logger.info("Getting starred parallel")
-
         val firstResponse = makeRequest(user)
-        val lastPage = Link.getLastPage(firstResponse.headers["link"])
-        val firstPageContent = getResponseBody(firstResponse)
-        return firstPageContent + getAllPages(lastPage, user)
+        val lastPage = Link.getLastPage(firstResponse.headers()["link"])
+        val firstPageContent = parseResponse(firstResponse)
+        return firstPageContent.toList() + getAllPages(lastPage, user)
     }
 
-    private inline fun getAllPages(
+    private fun getAllPages(
         lastPage: Int?,
         user: String
     ): List<StarredResponse> {
@@ -43,7 +43,7 @@ class GithubStarredFetcherParallel(
             null -> emptyList()
             else -> (2..lastPage).map {
                 executor.submit(Callable {
-                    getResponseBody(makeRequest(user, it))
+                    parseResponse(makeRequest(user, it))
                 })
             }.flatMap {
                 it.get(5, TimeUnit.SECONDS)
@@ -52,16 +52,22 @@ class GithubStarredFetcherParallel(
     }
 
 
-    private inline fun getResponseBody(re: ResponseEntity<Array<StarredResponse>>) =
-        re.body?.toList() ?: emptyList()
+    private fun parseResponse(re: HttpResponse<String>): List<StarredResponse> {
+        val c = re.body() ?: return emptyList()
+        return json.decodeFromString(c)
+    }
 
-    private inline fun makeRequest(
+    private fun makeRequest(
         user: String,
         page: Int = 1
-    ): ResponseEntity<Array<StarredResponse>> {
-        return restTemplate.getForEntity(
-            STARRED_URLS.format(user, page),
-            Array<StarredResponse>::class.java,
+    ): HttpResponse<String> {
+        val request = httpRequestBuilder
+            .uri(URI(STARRED_URLS.format(user, page)))
+            .GET()
+            .build()
+        return httpClient.send(
+            request,
+            HttpResponse.BodyHandlers.ofString()
         )
     }
 

@@ -1,5 +1,8 @@
 package com.eduardompinto.kotlinspring.usecase.githubstarred
 
+import kotlinx.serialization.Serializable
+
+
 const val STARRED_URLS =
     "https://api.github.com/users/%s/starred?page=%d"
 
@@ -49,6 +52,7 @@ internal data class Link(
     }
 }
 
+@Serializable
 data class StarredResponse(
     val html_url: String,
     val name: String,
