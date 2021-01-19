@@ -2,6 +2,7 @@ package com.eduardompinto.kotlinspring
 
 import com.eduardompinto.kotlinspring.usecase.githubstarred.GithubLoader
 import kotlinx.serialization.json.Json
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.beans.factory.config.BeanDefinition.SCOPE_PROTOTYPE
 import org.springframework.boot.CommandLineRunner
@@ -16,16 +17,15 @@ import java.net.http.HttpRequest
 import java.util.Base64
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.system.exitProcess
 
 
 @SpringBootApplication
 class App(private val githubLoader: GithubLoader) : CommandLineRunner {
     override fun run(vararg args: String?) {
-        while (true) {
-            val starred = githubLoader.listStars("eduardompinto")
-            println(starred)
-            Thread.sleep(10000)
-        }
+        val starred = githubLoader.listStars("eduardompinto")
+        println(starred)
+        exitProcess(0)
     }
 }
 
@@ -60,6 +60,14 @@ class BeanFactory(
                 Base64.getEncoder().encodeToString("$userId:$apiKey".toByteArray())
             }"
         )
+
+    @Bean
+    @Qualifier("baseHeaders")
+    fun headers(): Map<String, String> = mapOf(
+        "Authorization" to "Basic ${
+            Base64.getEncoder().encodeToString("$userId:$apiKey".toByteArray())
+        }"
+    )
 }
 
 operator fun HttpHeaders.get(key: String): List<String> = this.allValues(key)

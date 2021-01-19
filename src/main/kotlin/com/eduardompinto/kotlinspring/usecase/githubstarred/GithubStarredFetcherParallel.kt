@@ -5,7 +5,6 @@ import com.eduardompinto.kotlinspring.get
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.apache.commons.logging.LogFactory
-import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Service
 import java.net.URI
 import java.net.http.HttpClient
@@ -17,7 +16,6 @@ import java.util.concurrent.TimeUnit
 
 
 @Service
-@Primary
 class GithubStarredFetcherParallel(
     private val httpClient: HttpClient,
     private val httpRequestBuilder: HttpRequest.Builder,
